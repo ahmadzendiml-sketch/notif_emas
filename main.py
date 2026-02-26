@@ -7,14 +7,12 @@ import oandapyV20.endpoints.pricing as pricing
 from concurrent.futures import ThreadPoolExecutor
 import os
 
-# ═══ KONFIGURASI ═══
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 OANDA_ACCESS_TOKEN = os.getenv("OANDA_ACCESS_TOKEN", "")
 OANDA_ACCOUNT_ID = os.getenv("OANDA_ACCOUNT_ID", "")
 OANDA_ENVIRONMENT = "practice"
 
-# ═══ PRE-BUILT (dibuat sekali saat startup) ═══
 TG_SEND_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage" if TELEGRAM_TOKEN else ""
 TG_UPDATES_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates" if TELEGRAM_TOKEN else ""
 TREASURY_URL = "https://api.treasury.id/api/v1/antigrvty/gold/rate"
@@ -48,7 +46,6 @@ nominals = [
     (50_000_000, 48_325_000),
 ]
 
-# ═══ STATE ═══
 last_treasury_buy = None
 last_treasury_update = None
 custom_message = ""
@@ -56,7 +53,6 @@ last_update_id = 0
 cached_usd_idr = None
 cached_xau_usd = None
 
-# ═══ OANDA SINGLETON ═══
 oanda_executor = ThreadPoolExecutor(max_workers=1)
 _oanda_api = None
 
@@ -68,7 +64,6 @@ def get_oanda_api():
     return _oanda_api
 
 
-# ═══ WEEKEND QUIET ═══
 def is_weekend_quiet():
     now = datetime.now(WIB)
     wd = now.weekday()
@@ -87,7 +82,6 @@ def is_weekend_quiet():
     return False
 
 
-# ═══ FORMAT HELPERS ═══
 def format_tanggal_indo(updated_at_str):
     try:
         clean = updated_at_str.split('+')[0].split('Z')[0]
@@ -119,10 +113,17 @@ def get_status(new, old):
         return "Baru"
     diff = new - old
     if diff > 0:
-        return f"Naik 🚀 +{format_id_number(diff)} rupiah"
+        return f"🟢Naik🚀 +{format_id_number(diff)} rupiah"
     if diff < 0:
-        return f"Turun 🔻 -{format_id_number(-diff)} rupiah"
+        return f"🔴Turun🔻 -{format_id_number(-diff)} rupiah"
     return "━ Tetap"
+
+
+def calc_spread(buy, sell):
+    if buy and sell and buy > 0:
+        spread_percent = ((buy - sell) / buy) * 100
+        return f"({spread_percent:.2f}%)"
+    return ""
 
 
 def calc_profit(nominal, modal, buy, sell):
@@ -134,23 +135,22 @@ def calc_profit(nominal, modal, buy, sell):
 
 
 def build_message(new_buy, new_sell, status_msg, tanggal_indo, xau, usd, custom):
+    spread = calc_spread(new_buy, new_sell)
     parts = [
-        "<b>Info Harga Treasury</b>\n",
-        status_msg, "\n",
-        "<b>", tanggal_indo, "</b>\n\n",
-        "Harga Beli: <b>Rp ", format_id_number(new_buy), "</b> ",
-        "Jual: <b>Rp ", format_id_number(new_sell), "</b>\n\n",
+        "<b>", status_msg, "</b>\n\n",
+        "<b>", tanggal_indo, " WIB</b>\n\n",
+        "Beli: <b>Rp ", format_id_number(new_buy), "</b> ",
+        "Jual: <b>Rp ", format_id_number(new_sell), "</b> <b>", spread, "</b>\n\n",
     ]
     for nominal, modal in nominals:
         gram, selisih, warna, sign = calc_profit(nominal, modal, new_buy, new_sell)
         parts.append(f"🥇 {nominal // 1_000_000} JT ➺ {gram:.4f}gr {warna} {sign}<b>Rp {format_id_number(selisih)}</b>\n")
-    parts.append(f"\nHarga XAU : <b>{format_id_number(xau, 3)}</b> USD : <b>{format_id_number(usd, 4)}</b>")
+    parts.append(f"\nHarga XAU: <b>{format_id_number(xau, 3)}</b> USD: <b>{format_id_number(usd, 4)}</b>")
     if custom:
         parts.append(f"\n\n<b>{custom}</b>")
     return "".join(parts)
 
 
-# ═══ NETWORK ═══
 async def send_telegram(session, message):
     if not TG_SEND_URL:
         return
@@ -263,7 +263,6 @@ async def update_secondary_data(session):
         await asyncio.sleep(5)
 
 
-# ═══ MAIN LOOP ═══
 async def main_async():
     global last_treasury_buy, last_treasury_update
 
