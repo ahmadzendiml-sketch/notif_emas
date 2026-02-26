@@ -113,16 +113,16 @@ def get_status(new, old):
         return "Baru"
     diff = new - old
     if diff > 0:
-        return f"🟢Naik🚀 +{format_id_number(diff)} rupiah"
+        return f"🟢NAIK🚀 +{format_id_number(diff)} rupiah"
     if diff < 0:
-        return f"🔴Turun🔻 -{format_id_number(-diff)} rupiah"
-    return "━ Tetap"
+        return f"🔴TURUN🔻 -{format_id_number(-diff)} rupiah"
+    return "━TETAP"
 
 
 def calc_spread(buy, sell):
     if buy and sell and buy > 0:
         spread_percent = ((buy - sell) / buy) * 100
-        return f"({spread_percent:.2f}%)"
+        return f"(-{spread_percent:.2f}%)"
     return ""
 
 
@@ -137,7 +137,7 @@ def calc_profit(nominal, modal, buy, sell):
 def build_message(new_buy, new_sell, status_msg, tanggal_indo, xau, usd, custom):
     spread = calc_spread(new_buy, new_sell)
     parts = [
-        "<b>", status_msg, "</b>\n\n",
+        "<b>", status_msg, "</b>\n",
         "<b>", tanggal_indo, " WIB</b>\n\n",
         "Beli: <b>Rp ", format_id_number(new_buy), "</b> ",
         "Jual: <b>Rp ", format_id_number(new_sell), "</b> <b>", spread, "</b>\n\n",
